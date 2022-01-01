@@ -20,7 +20,7 @@ where:
 example:
 
 ```
-ORANGE_SMS_DSN=orangesms://RbttXo2y3IglAqJXlXTzZywyyjqve8Ko:isNpfgVeEKrrpHuP@default?from=+243000000&sender_name=platformXYZ
+ORANGE_SMS_DSN=orangesms://RbttXve8o2y3IglAqJXlXTzZywyyjqKo:iNpfgVeHusPEKrrp@default?from=+243000000&sender_name=platformXYZ
 ```
 
 See Orange Sms documentation at https://developer.orange.com/apis/sms-cd/api-reference

@@ -1,6 +1,15 @@
 <?php
 
-namespace Enigma972\OrangeSms;
+/*
+ * This file is part of the Symfony package.
+ *
+ * (c) Fabien Potencier <fabien@symfony.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+namespace Symfony\Component\Notifier\Bridge\OrangeSms;
 
 use Symfony\Component\Notifier\Message\SmsMessage;
 use Symfony\Component\Notifier\Message\SentMessage;
@@ -31,13 +40,18 @@ final class OrangeSmsTransport extends AbstractTransport
         parent::__construct($client, $dispatcher);
     }
 
+    public function supports(MessageInterface $message): bool
+    {
+        return $message instanceof SmsMessage;
+    }
+
     public function doSend(MessageInterface $message): SentMessage
     {
         if (!$message instanceof SmsMessage) {
             throw new LogicException(sprintf('The "%s" transport only supports instances of "%s" (instance of "%s" given).', __CLASS__, SmsMessage::class, get_debug_type($message)));
         }
         
-        $url = $this->getEndpoint() . "/smsmessaging/v1/outbound/{$this->getEncodedSender()}/requests";
+        $url = $this->getEndpoint() . '/smsmessaging/v1/outbound/' . urlencode('tel:' . $this->from) . '/requests';
         $headers = [
             'Authorization' =>  'Bearer ' . $this->getAccessToken(),
             'Content-Type'  =>  'application/json'
@@ -45,15 +59,15 @@ final class OrangeSmsTransport extends AbstractTransport
 
         $args = [
             'outboundSMSMessageRequest' => [
-                'address'                   =>  $message->getPhone(),
-                'senderAddress'             =>  $this->getEncodedSender(),
+                'address'                   =>  'tel:' . $message->getPhone(),
+                'senderAddress'             =>  'tel:' . $this->from,
                 'outboundSMSTextMessage'    =>  [
                     'message'   =>  $message->getSubject()
                 ]
             ]
         ];
 
-        if ($this->senderName) {
+        if (null !== $this->senderName) {
             $args['outboundSMSMessageRequest']['senderName'] = urlencode($this->senderName);
         }
 
@@ -71,16 +85,6 @@ final class OrangeSmsTransport extends AbstractTransport
         }
 
         return new SentMessage($message, (string) $this);
-    }
-
-    public function __toString(): string
-    {
-        return sprintf('orangesms://%s?from=%s', $this->getEndpoint(), $this->from);
-    }
-
-    public function supports(MessageInterface $message): bool
-    {
-        return $message instanceof SmsMessage;
     }
 
     public function getAccessToken()
@@ -106,8 +110,8 @@ final class OrangeSmsTransport extends AbstractTransport
         return $response->toArray()['access_token'];
     }
 
-    public function getEncodedSender()
+    public function __toString(): string
     {
-        return urlencode('tel:' . $this->from);
+        return sprintf('orangesms://%s?from=%s', $this->getEndpoint(), $this->from);
     }
 }

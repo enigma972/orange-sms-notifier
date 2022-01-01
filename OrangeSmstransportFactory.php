@@ -1,6 +1,15 @@
 <?php
 
-namespace Enigma972\OrangeSms;
+/*
+ * This file is part of the Symfony package.
+ *
+ * (c) Fabien Potencier <fabien@symfony.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+namespace Symfony\Component\Notifier\Bridge\OrangeSms;
 
 use Symfony\Component\Notifier\Transport\Dsn;
 use Symfony\Component\Notifier\Transport\TransportInterface;
@@ -8,7 +17,7 @@ use Symfony\Component\Notifier\Exception\IncompleteDsnException;
 use Symfony\Component\Notifier\Transport\AbstractTransportFactory;
 use Symfony\Component\Notifier\Exception\UnsupportedSchemeException;
 
-final class OrangeSmsTransport extends AbstractTransportFactory
+final class OrangeSmsTransportFactory extends AbstractTransportFactory
 {
     /**
      * @return OrangeSmsTransport
