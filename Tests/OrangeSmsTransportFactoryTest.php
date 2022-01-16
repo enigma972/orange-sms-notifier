@@ -9,18 +9,14 @@
  * file that was distributed with this source code.
  */
 
-namespace Symfony\Component\Notifier\Bridge\Esendex\Tests;
+namespace Symfony\Component\Notifier\Bridge\OrangeSms\Tests;
 
-use Symfony\Component\Notifier\Bridge\Esendex\OrangeSmsTransportFactory;
+use Symfony\Component\Notifier\Bridge\OrangeSms\OrangeSmsTransportFactory;
 use Symfony\Component\Notifier\Test\TransportFactoryTestCase;
-use Symfony\Component\Notifier\Transport\TransportFactoryInterface;
 
 final class OrangeSmsTransportFactoryTest extends TransportFactoryTestCase
 {
-    /**
-     * @return OrangeSmsTransportFactory
-     */
-    public function createFactory(): TransportFactoryInterface
+    public function createFactory(): OrangeSmsTransportFactory
     {
         return new OrangeSmsTransportFactory();
     }
@@ -28,27 +24,27 @@ final class OrangeSmsTransportFactoryTest extends TransportFactoryTestCase
     public function createProvider(): iterable
     {
         yield [
-            'orangesms://default?from=FROM&sender_name=SENDER_NAME',
-            'orangesms://CLIENT_ID:CLIENT_SECRET@default?from=FROM&sender_name=SENDER_NAME',
+            'orange-sms://host.test?from=FROM&sender_name=SENDER_NAME',
+            'orange-sms://CLIENT_ID:CLIENT_SECRET@host.test?from=FROM&sender_name=SENDER_NAME',
         ];
     }
 
     public function supportsProvider(): iterable
     {
-        yield [true, 'orangesms://CLIENT_ID:CLIENT_SECRET@default?from=FROM&sender_name=SENDER_NAME'];
+        yield [true, 'orange-sms://CLIENT_ID:CLIENT_SECRET@default?from=FROM&sender_name=SENDER_NAME'];
         yield [false, 'somethingElse://CLIENT_ID:CLIENT_SECRET@default'];
     }
 
     public function incompleteDsnProvider(): iterable
     {
-        yield 'missing credentials' => ['orangesms://default?from=FROM&sender_name=SENDER_NAME'];
-        yield 'missing Client ID' => ['orangesms://:CLIENT_SECRET@default?from=FROM&sender_name=SENDER_NAME'];
-        yield 'missing client Secret' => ['orangesms://CLIENT_ID:@default?from=FROM&sender_name=SENDER_NAME'];
+        yield 'missing credentials' => ['orange-sms://default?from=FROM&sender_name=SENDER_NAME'];
+        yield 'missing CLIENT_ID' => ['orange-sms://:CLIENT_SECRET@default?from=FROM&sender_name=SENDER_NAME'];
+        yield 'missing CLIENT_SECRET' => ['orange-sms://CLIENT_ID:@default?from=FROM&sender_name=SENDER_NAME'];
     }
 
     public function missingRequiredOptionProvider(): iterable
     {
-        yield 'missing option: from' => ['orangesms://CLIENT_ID:CLIENT_SECRET@default?sender_name=SENDER_NAME'];
+        yield 'missing option: from' => ['orange-sms://CLIENT_ID:CLIENT_SECRET@default?sender_name=SENDER_NAME'];
     }
 
     public function unsupportedSchemeProvider(): iterable

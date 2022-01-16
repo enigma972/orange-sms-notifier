@@ -11,33 +11,41 @@
 
 namespace Symfony\Component\Notifier\Bridge\OrangeSms;
 
-use Symfony\Component\Notifier\Message\SmsMessage;
-use Symfony\Component\Notifier\Message\SentMessage;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
-use Symfony\Component\Notifier\Exception\LogicException;
-use Symfony\Component\Notifier\Message\MessageInterface;
-use Symfony\Component\Notifier\Transport\AbstractTransport;
 use Symfony\Component\Notifier\Exception\TransportException;
+use Symfony\Component\Notifier\Exception\UnsupportedMessageTypeException;
+use Symfony\Component\Notifier\Message\MessageInterface;
+use Symfony\Component\Notifier\Message\SentMessage;
+use Symfony\Component\Notifier\Message\SmsMessage;
+use Symfony\Component\Notifier\Transport\AbstractTransport;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final class OrangeSmsTransport extends AbstractTransport
 {
-    protected const HOST = 'https://api.orange.com';
+    protected const HOST = 'api.orange.com';
 
-    private $clientID;
-    private $clientSecret;
-    private $from;
-    private $senderName;
+    private string $clientID;
+    private string $clientSecret;
+    private string $from;
+    private ?string $senderName;
 
-    public function __construct(string $clientID, string $clientSecret, string $from, ?string $senderName, HttpClientInterface $client = null, EventDispatcherInterface $dispatcher = null)
+    public function __construct(string $clientID, string $clientSecret, string $from, string $senderName = null, HttpClientInterface $client = null, EventDispatcherInterface $dispatcher = null)
     {
         $this->clientID = $clientID;
         $this->clientSecret = $clientSecret;
         $this->from = $from;
         $this->senderName = $senderName;
 
-
         parent::__construct($client, $dispatcher);
+    }
+
+    public function __toString(): string
+    {
+        if (null !== $this->senderName) {
+            return sprintf('orange-sms://%s?from=%s&sender_name=%s', $this->getEndpoint(), $this->from, $this->senderName);
+        }
+
+        return sprintf('orange-sms://%s?from=%s', $this->getEndpoint(), $this->from);
     }
 
     public function supports(MessageInterface $message): bool
@@ -48,70 +56,64 @@ final class OrangeSmsTransport extends AbstractTransport
     public function doSend(MessageInterface $message): SentMessage
     {
         if (!$message instanceof SmsMessage) {
-            throw new LogicException(sprintf('The "%s" transport only supports instances of "%s" (instance of "%s" given).', __CLASS__, SmsMessage::class, get_debug_type($message)));
+            throw new UnsupportedMessageTypeException(__CLASS__, SmsMessage::class, $message);
         }
-        
-        $url = $this->getEndpoint() . '/smsmessaging/v1/outbound/' . urlencode('tel:' . $this->from) . '/requests';
+
+        $url = 'https://'.$this->getEndpoint().'/smsmessaging/v1/outbound/'.urlencode('tel:'.$this->from).'/requests';
         $headers = [
-            'Authorization' =>  'Bearer ' . $this->getAccessToken(),
-            'Content-Type'  =>  'application/json'
+            'Authorization' => 'Bearer '.$this->getAccessToken(),
+            'Content-Type' => 'application/json',
         ];
 
-        $args = [
+        $payload = [
             'outboundSMSMessageRequest' => [
-                'address'                   =>  'tel:' . $message->getPhone(),
-                'senderAddress'             =>  'tel:' . $this->from,
-                'outboundSMSTextMessage'    =>  [
-                    'message'   =>  $message->getSubject()
-                ]
-            ]
+                'address' => 'tel:'.$message->getPhone(),
+                'senderAddress' => 'tel:'.$this->from,
+                'outboundSMSTextMessage' => [
+                    'message' => $message->getSubject(),
+                ],
+            ],
         ];
 
         if (null !== $this->senderName) {
-            $args['outboundSMSMessageRequest']['senderName'] = urlencode($this->senderName);
+            $payload['outboundSMSMessageRequest']['senderName'] = urlencode($this->senderName);
         }
 
         $response = $this->client->request('POST', $url, [
-            'headers'   => $headers,
-            'json'      => $args
+            'headers' => $headers,
+            'json' => $payload,
         ]);
 
-        if (201 != $response->getStatusCode()) {
+        if (201 !== $response->getStatusCode()) {
             $content = $response->toArray(false);
             $errorMessage = $content['requestError']['serviceException']['messageId'] ?? '';
             $errorInfo = $content['requestError']['serviceException']['text'] ?? '';
 
-            throw new TransportException(sprintf('Unable to send the SMS: '.$errorMessage.' (%s).', $errorInfo), $response);
+            throw new TransportException(sprintf('Unable to send the SMS: "%s" (%s).', $errorMessage, $errorInfo), $response);
         }
 
         return new SentMessage($message, (string) $this);
     }
 
-    public function getAccessToken()
+    private function getAccessToken(): string
     {
-        $url = self::HOST . '/oauth/v3/token';
-        $credentials = $this->clientID . ':' . $this->clientSecret;
+        $url = 'https://'.$this->getEndpoint().'/oauth/v3/token';
         $headers = [
-            'Authorization' =>  'Basic ' . base64_encode($credentials),
-            'Content-Type'  =>  'application/x-www-form-urlencoded',
-            'Accept'        =>  'application/json'
+            'Content-Type' => 'application/x-www-form-urlencoded',
+            'Accept' => 'application/json',
         ];
-        $args = array('grant_type' => 'client_credentials');
+        $args = ['grant_type' => 'client_credentials'];
 
         $response = $this->client->request('POST', $url, [
-            'headers'   =>  $headers,
-            'body'      => $args
+            'auth_basic' => [$this->clientID, $this->clientSecret],
+            'headers' => $headers,
+            'body' => $args,
         ]);
 
         if (200 !== $response->getStatusCode()) {
-            throw new TransportException('Get Access Token Failled', $response);
+            throw new TransportException('Failed to get Orange access token .', $response);
         }
-        
-        return $response->toArray()['access_token'];
-    }
 
-    public function __toString(): string
-    {
-        return sprintf('orangesms://%s?from=%s', $this->getEndpoint(), $this->from);
+        return $response->toArray()['access_token'];
     }
 }
